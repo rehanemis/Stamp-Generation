@@ -12,7 +12,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom UI Styling
 st.markdown("""
     <style>
         .block-container {
@@ -235,10 +234,8 @@ def paste_custom_logo(base_img, uploaded_file, cx, cy, max_size, target_color):
     base_img.paste(color_img, (cx - lw // 2, cy - lh // 2), color_img)
 
 # ── 5. STAMP BUILDER ENGINE ───────────────────────────────────────────────
-def generate_stamp(company, address, hex_color, shape, icon_source, icon_name, uploaded_file, icon_scale_mode):
+def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_source, icon_name, uploaded_file, icon_scale_mode):
     color = hex_to_rgb(hex_color)
-    fs_top = max(18, min(24, int(700 / max(len(company), 1))))
-    fs_bot = max(16, min(22, int(650 / max(len(address), 1))))
 
     if shape in ["double_round", "round"]:
         S = 620
@@ -372,9 +369,12 @@ st.write("Configure and download custom transparent PNG stamps for official docu
 col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
-    st.subheader("1. Text Content")
+    st.subheader("1. Text Content & Font Sizes")
     company_name = st.text_input("Company / Organization Name", "NATIONAL COMMISSION FOR HUMAN DEVELOPMENT")
+    fs_top = st.slider("Company Name Font Size", min_value=10, max_value=40, value=22, step=1)
+
     address_text = st.text_input("Address / Location Text", "TEHSIL AND DISTRICT NAROWAL")
+    fs_bot = st.slider("Address Text Font Size", min_value=10, max_value=35, value=18, step=1)
 
     st.subheader("2. Design & Ink")
     shape = st.selectbox("Stamp Frame Shape", [
@@ -409,6 +409,8 @@ with col_right:
     stamp_img = generate_stamp(
         company=company_name,
         address=address_text,
+        fs_top=fs_top,
+        fs_bot=fs_bot,
         hex_color=hex_color,
         shape=shape,
         icon_source=icon_source,
