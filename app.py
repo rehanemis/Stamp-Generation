@@ -1,5 +1,6 @@
 import math
 import io
+import urllib.request
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
@@ -37,36 +38,49 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ── 2. FONT HELPER ─────────────────────────────────────────────────────────
-def get_font(size, font_style="Sans-Serif Bold"):
-    """Loads scalable fonts based on user selection."""
-    font_map = {
-        "Sans-Serif Bold": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-            "C:/Windows/Fonts/arialbd.ttf",
-            "arialbd.ttf"
-        ],
-        "Serif (Classic)": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-            "C:/Windows/Fonts/timesbd.ttf",
-            "timesbd.ttf"
-        ],
-        "Monospace (Stamp/Typewriter)": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
-            "C:/Windows/Fonts/courbd.ttf",
-            "courbd.ttf"
-        ]
-    }
+# ── 2. RELIABLE FONT LOADER WITH CDN FALLBACKS ─────────────────────────────
+@st.cache_data(show_spinner=False)
+def fetch_font_data(url):
+    """Downloads font bytes once and caches them to avoid local system font issues."""
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            return response.read()
+    except Exception:
+        return None
+
+FONT_URLS = {
+    "Sans-Serif Bold (Roboto)": "https://github.com/google/fonts/raw/main/ofl/roboto/Roboto-Bold.ttf",
+    "Sans-Serif Condensed (Oswald)": "https://github.com/google/fonts/raw/main/ofl/oswald/Oswald-Bold.ttf",
+    "Serif Classic (Playfair)": "https://github.com/google/fonts/raw/main/ofl/playfairdisplay/PlayfairDisplay-Bold.ttf",
+    "Serif Formal (Merriweather)": "https://github.com/google/fonts/raw/main/ofl/merriweather/Merriweather-Bold.ttf",
+    "Monospace / Technical (Fira)": "https://github.com/google/fonts/raw/main/ofl/firacode/FiraCode-Bold.ttf",
+    "Slab Serif (Roboto Slab)": "https://github.com/google/fonts/raw/main/apache/robotoslab/RobotoSlab-Bold.ttf"
+}
+
+def get_font(size, font_style="Sans-Serif Bold (Roboto)"):
+    """Loads scalable fonts reliably from cached bytes."""
+    url = FONT_URLS.get(font_style)
+    if url:
+        font_bytes = fetch_font_data(url)
+        if font_bytes:
+            try:
+                return ImageFont.truetype(io.BytesIO(font_bytes), size)
+            except Exception:
+                pass
     
-    paths = font_map.get(font_style, font_map["Sans-Serif Bold"])
-    for path in paths:
+    # Local fallback search
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "arialbd.ttf"
+    ]
+    for path in font_paths:
         try:
             return ImageFont.truetype(path, size)
         except Exception:
             continue
+
     try:
         return ImageFont.load_default(size=size)
     except Exception:
@@ -170,7 +184,7 @@ def curved_text_oval(img, text, cx, cy, rx, ry, start_deg, color, font, spacing=
             ch_im = ch_im.rotate(-rot, expand=True, resample=Image.BICUBIC)
             pw, ph = ch_im.size
             img.paste(ch_im, (int(x - pw/2), int(y - ph/2)), ch_im)
-            cur += cw / r_avg
+            cur += cw / radius
 
 # ── 4. DYNAMIC ICONS & CUSTOM LOGO HANDLING ──────────────────────────────
 def get_icon_radius(canvas_dim, icon_scale_mode):
@@ -426,11 +440,7 @@ with col_left:
     address_text = st.text_input("Address / Location Text", "AJMAN U.A.E")
     fs_bot = st.slider("Address Text Font Size", min_value=15, max_value=70, value=38, step=2)
 
-    font_style = st.selectbox("Font Family / Typeface", [
-        "Sans-Serif Bold",
-        "Serif (Classic)",
-        "Monospace (Stamp/Typewriter)"
-    ])
+    font_style = st.selectbox("Font Typeface", list(FONT_URLS.keys()))
 
     st.subheader("2. Colors & Design")
     
