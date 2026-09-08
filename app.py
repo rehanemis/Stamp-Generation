@@ -39,7 +39,6 @@ st.markdown("""
 
 # ── 2. FONT HELPER ─────────────────────────────────────────────────────────
 def get_font(size):
-    """Dynamically loads scalable font for both Windows and Linux Cloud environments."""
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
@@ -51,7 +50,6 @@ def get_font(size):
             return ImageFont.truetype(path, size)
         except Exception:
             continue
-    # Fallback to Pillow 10+ scalable default font
     try:
         return ImageFont.load_default(size=size)
     except Exception:
@@ -227,17 +225,44 @@ def draw_builtin_icon(draw, cx, cy, size, color, icon_name):
         ], outline=c, width=4)
 
 def paste_custom_logo(base_img, uploaded_file, cx, cy, max_size, target_color):
-    logo = Image.open(uploaded_file).convert("RGBA")
-    logo.thumbnail((max_size * 2, max_size * 2), Image.BICUBIC)
-    
-    alpha = logo.split()[3]
-    color_img = Image.new("RGBA", logo.size, target_color + (255,))
-    color_img.putalpha(alpha)
-    
-    lw, lh = color_img.size
-    base_img.paste(color_img, (cx - lw // 2, cy - lh // 2), color_img)
+    try:
+        uploaded_file.seek(0)
+        logo = Image.open(uploaded_file).convert("RGBA")
 
-# ── 5. HIGH-RESOLUTION STAMP BUILDER ENGINE (1200x1200px CANVAS) ─────────
+        aspect_ratio = logo.width / logo.height
+        if aspect_ratio > 1:
+            new_w = max_size * 2
+            new_h = max(int(new_w / aspect_ratio), 1)
+        else:
+            new_h = max_size * 2
+            new_w = max(int(new_h * aspect_ratio), 1)
+
+        logo = logo.resize((new_w, new_h), Image.BICUBIC)
+
+        extrema = logo.getextrema()
+        has_transparency = (len(extrema) == 4 and extrema[3][0] < 255)
+
+        if has_transparency:
+            r, g, b, alpha = logo.split()
+            color_img = Image.new("RGBA", logo.size, target_color + (255,))
+            gray = logo.convert("L")
+            mask = Image.eval(gray, lambda p: 255 - p)
+            final_alpha = Image.composite(mask, alpha, alpha)
+            color_img.putalpha(final_alpha)
+            logo_to_paste = color_img
+        else:
+            gray = logo.convert("L")
+            alpha_mask = Image.eval(gray, lambda p: 255 - p if p > 30 else 255)
+            color_img = Image.new("RGBA", logo.size, target_color + (255,))
+            color_img.putalpha(alpha_mask)
+            logo_to_paste = color_img
+
+        lw, lh = logo_to_paste.size
+        base_img.paste(logo_to_paste, (cx - lw // 2, cy - lh // 2), logo_to_paste)
+    except Exception as e:
+        pass
+
+# ── 5. HIGH-RESOLUTION STAMP BUILDER ENGINE ──────────────────────────────
 def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_source, icon_name, uploaded_file, icon_scale_mode):
     color = hex_to_rgb(hex_color)
     font_top = get_font(fs_top)
