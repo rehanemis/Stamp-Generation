@@ -38,14 +38,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── 2. FONT HELPER ─────────────────────────────────────────────────────────
-def get_font(size):
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "C:/Windows/Fonts/arialbd.ttf",
-        "arial.ttf"
-    ]
-    for path in font_paths:
+def get_font(size, font_style="Sans-Serif Bold"):
+    """Loads scalable fonts based on user selection."""
+    font_map = {
+        "Sans-Serif Bold": [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "C:/Windows/Fonts/arialbd.ttf",
+            "arialbd.ttf"
+        ],
+        "Serif (Classic)": [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
+            "C:/Windows/Fonts/timesbd.ttf",
+            "timesbd.ttf"
+        ],
+        "Monospace (Stamp/Typewriter)": [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+            "C:/Windows/Fonts/courbd.ttf",
+            "courbd.ttf"
+        ]
+    }
+    
+    paths = font_map.get(font_style, font_map["Sans-Serif Bold"])
+    for path in paths:
         try:
             return ImageFont.truetype(path, size)
         except Exception:
@@ -259,14 +276,16 @@ def paste_custom_logo(base_img, uploaded_file, cx, cy, max_size, target_color):
 
         lw, lh = logo_to_paste.size
         base_img.paste(logo_to_paste, (cx - lw // 2, cy - lh // 2), logo_to_paste)
-    except Exception as e:
+    except Exception:
         pass
 
-# ── 5. HIGH-RESOLUTION STAMP BUILDER ENGINE ──────────────────────────────
-def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_source, icon_name, uploaded_file, icon_scale_mode):
-    color = hex_to_rgb(hex_color)
-    font_top = get_font(fs_top)
-    font_bot = get_font(fs_bot)
+# ── 5. STAMP BUILDER ENGINE ───────────────────────────────────────────────
+def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape_hex, shape, icon_source, icon_name, uploaded_file, icon_scale_mode):
+    text_color = hex_to_rgb(text_hex)
+    shape_color = hex_to_rgb(shape_hex)
+    
+    font_top = get_font(fs_top, font_style)
+    font_bot = get_font(fs_bot, font_style)
 
     if shape in ["double_round", "round"]:
         S = 1200
@@ -279,23 +298,23 @@ def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_sour
         if shape == "double_round":
             r_mid = r_outer - 110
             r_inner = r_mid - 40
-            draw.ellipse([cx-r_outer, cy-r_outer, cx+r_outer, cy+r_outer], outline=color, width=18)
-            draw.ellipse([cx-r_mid, cy-r_mid, cx+r_mid, cy+r_mid], outline=color, width=4)
-            draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=color, width=3)
+            draw.ellipse([cx-r_outer, cy-r_outer, cx+r_outer, cy+r_outer], outline=shape_color, width=18)
+            draw.ellipse([cx-r_mid, cy-r_mid, cx+r_mid, cy+r_mid], outline=shape_color, width=4)
+            draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=shape_color, width=3)
             r_text = (r_outer + r_mid) / 2
         else:
-            draw.ellipse([cx-r_outer, cy-r_outer, cx+r_outer, cy+r_outer], outline=color, width=18)
-            draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=color, width=4)
+            draw.ellipse([cx-r_outer, cy-r_outer, cx+r_outer, cy+r_outer], outline=shape_color, width=18)
+            draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=shape_color, width=4)
             r_text = (r_outer + r_inner) / 2
 
-        curved_text_circle(img, company, cx, cy, r_text, -90, color, font_top, 1.05, flip=False)
-        curved_text_circle(img, address, cx, cy, r_text, 90, color, font_bot, 1.08, flip=True)
+        curved_text_circle(img, company, cx, cy, r_text, -90, text_color, font_top, 1.05, flip=False)
+        curved_text_circle(img, address, cx, cy, r_text, 90, text_color, font_bot, 1.08, flip=True)
         
         icon_size = get_icon_radius(S, icon_scale_mode)
         if icon_source == "Built-in Icon":
-            draw_builtin_icon(draw, cx, cy, icon_size, color, icon_name)
+            draw_builtin_icon(draw, cx, cy, icon_size, shape_color, icon_name)
         elif icon_source == "Upload Custom Logo" and uploaded_file is not None:
-            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, color)
+            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, shape_color)
 
     elif shape == "oval":
         W, H = 1300, 900
@@ -305,19 +324,19 @@ def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_sour
         rx1, ry1 = W // 2 - 50, H // 2 - 50
         rx2, ry2 = rx1 - 130, ry1 - 130
 
-        draw.ellipse([cx-rx1, cy-ry1, cx+rx1, cy+ry1], outline=color, width=18)
-        draw.ellipse([cx-rx2, cy-ry2, cx+rx2, cy+ry2], outline=color, width=4)
+        draw.ellipse([cx-rx1, cy-ry1, cx+rx1, cy+ry1], outline=shape_color, width=18)
+        draw.ellipse([cx-rx2, cy-ry2, cx+rx2, cy+ry2], outline=shape_color, width=4)
 
         rx_text = (rx1 + rx2) / 2
         ry_text = (ry1 + ry2) / 2
-        curved_text_oval(img, company, cx, cy, rx_text, ry_text, -90, color, font_top, 1.05, flip=False)
-        curved_text_oval(img, address, cx, cy, rx_text, ry_text, 90, color, font_bot, 1.08, flip=True)
+        curved_text_oval(img, company, cx, cy, rx_text, ry_text, -90, text_color, font_top, 1.05, flip=False)
+        curved_text_oval(img, address, cx, cy, rx_text, ry_text, 90, text_color, font_bot, 1.08, flip=True)
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
-            draw_builtin_icon(draw, cx, cy, icon_size, color, icon_name)
+            draw_builtin_icon(draw, cx, cy, icon_size, shape_color, icon_name)
         elif icon_source == "Upload Custom Logo" and uploaded_file is not None:
-            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, color)
+            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, shape_color)
 
     elif shape in ["rectangle", "square", "capsule"]:
         W, H = (1200, 800) if shape == "rectangle" else ((1000, 1000) if shape == "square" else (1300, 700))
@@ -327,22 +346,22 @@ def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_sour
         pad = 32
 
         if shape == "capsule":
-            draw.rounded_rectangle([pad, pad, W-pad, H-pad], radius=H//2, outline=color, width=16)
-            draw.rounded_rectangle([pad+24, pad+24, W-pad-24, H-pad-24], radius=H//2, outline=color, width=4)
+            draw.rounded_rectangle([pad, pad, W-pad, H-pad], radius=H//2, outline=shape_color, width=16)
+            draw.rounded_rectangle([pad+24, pad+24, W-pad-24, H-pad-24], radius=H//2, outline=shape_color, width=4)
         else:
-            draw.rectangle([pad, pad, W-pad, H-pad], outline=color, width=16)
-            draw.rectangle([pad+28, pad+28, W-pad-28, H-pad-28], outline=color, width=4)
+            draw.rectangle([pad, pad, W-pad, H-pad], outline=shape_color, width=16)
+            draw.rectangle([pad+28, pad+28, W-pad-28, H-pad-28], outline=shape_color, width=4)
 
-        draw.text((cx, pad+84), company.upper(), font=font_top, fill=color+(255,), anchor="mm")
-        draw.line([pad+60, pad+136, W-pad-60, pad+136], fill=color, width=4)
-        draw.line([pad+60, H-pad-136, W-pad-60, H-pad-136], fill=color, width=4)
-        draw.text((cx, H-pad-84), address.upper(), font=font_bot, fill=color+(255,), anchor="mm")
+        draw.text((cx, pad+84), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm")
+        draw.line([pad+60, pad+136, W-pad-60, pad+136], fill=shape_color, width=4)
+        draw.line([pad+60, H-pad-136, W-pad-60, H-pad-136], fill=shape_color, width=4)
+        draw.text((cx, H-pad-84), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm")
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
-            draw_builtin_icon(draw, cx, H//2, icon_size, color, icon_name)
+            draw_builtin_icon(draw, cx, H//2, icon_size, shape_color, icon_name)
         elif icon_source == "Upload Custom Logo" and uploaded_file is not None:
-            paste_custom_logo(img, uploaded_file, cx, H//2, icon_size, color)
+            paste_custom_logo(img, uploaded_file, cx, H//2, icon_size, shape_color)
 
     elif shape == "triangle":
         W, H = 1200, 1040
@@ -352,17 +371,17 @@ def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_sour
         
         pts_out = [(cx, 40), (W-40, H-40), (40, H-40)]
         pts_in = [(cx, 120), (W-120, H-80), (120, H-80)]
-        draw.polygon(pts_out, outline=color, width=16)
-        draw.polygon(pts_in, outline=color, width=4)
+        draw.polygon(pts_out, outline=shape_color, width=16)
+        draw.polygon(pts_in, outline=shape_color, width=4)
 
-        draw.text((cx, H - 150), company.upper(), font=font_top, fill=color+(255,), anchor="mm")
-        draw.text((cx, H - 100), address.upper(), font=font_bot, fill=color+(255,), anchor="mm")
+        draw.text((cx, H - 150), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm")
+        draw.text((cx, H - 100), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm")
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
-            draw_builtin_icon(draw, cx, H//2 - 40, icon_size, color, icon_name)
+            draw_builtin_icon(draw, cx, H//2 - 40, icon_size, shape_color, icon_name)
         elif icon_source == "Upload Custom Logo" and uploaded_file is not None:
-            paste_custom_logo(img, uploaded_file, cx, H//2 - 40, icon_size, color)
+            paste_custom_logo(img, uploaded_file, cx, H//2 - 40, icon_size, shape_color)
 
     elif shape == "notary_star":
         S = 1200
@@ -377,19 +396,19 @@ def generate_stamp(company, address, fs_top, fs_bot, hex_color, shape, icon_sour
             angle = math.radians(i * (360 / (teeth * 2)))
             r = r_out if i % 2 == 0 else r_out - 24
             pts.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
-        draw.polygon(pts, outline=color, width=6)
+        draw.polygon(pts, outline=shape_color, width=6)
 
         r_inner = r_out - 80
-        draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=color, width=4)
+        draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=shape_color, width=4)
 
-        curved_text_circle(img, company, cx, cy, r_inner-50, -90, color, font_top, 1.05, flip=False)
-        curved_text_circle(img, address, cx, cy, r_inner-50, 90, color, font_bot, 1.08, flip=True)
+        curved_text_circle(img, company, cx, cy, r_inner-50, -90, text_color, font_top, 1.05, flip=False)
+        curved_text_circle(img, address, cx, cy, r_inner-50, 90, text_color, font_bot, 1.08, flip=True)
 
         icon_size = get_icon_radius(S, icon_scale_mode)
         if icon_source == "Built-in Icon":
-            draw_builtin_icon(draw, cx, cy, icon_size, color, icon_name)
+            draw_builtin_icon(draw, cx, cy, icon_size, shape_color, icon_name)
         elif icon_source == "Upload Custom Logo" and uploaded_file is not None:
-            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, color)
+            paste_custom_logo(img, uploaded_file, cx, cy, icon_size, shape_color)
 
     return img
 
@@ -400,14 +419,27 @@ st.write("Configure and download high-resolution transparent PNG stamps for offi
 col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
-    st.subheader("1. Text Content & Font Sizes")
-    company_name = st.text_input("Company / Organization Name", "NATIONAL COMMISSION FOR HUMAN DEVELOPMENT")
-    fs_top = st.slider("Company Name Font Size", min_value=20, max_value=80, value=45, step=2)
+    st.subheader("1. Text Content & Font Options")
+    company_name = st.text_input("Company / Organization Name", "SAKIB HASSAN BUILDING MAINTINANCE LLC")
+    fs_top = st.slider("Company Name Font Size", min_value=20, max_value=80, value=52, step=2)
 
-    address_text = st.text_input("Address / Location Text", "TEHSIL AND DISTRICT NAROWAL")
-    fs_bot = st.slider("Address Text Font Size", min_value=15, max_value=70, value=35, step=2)
+    address_text = st.text_input("Address / Location Text", "AJMAN U.A.E")
+    fs_bot = st.slider("Address Text Font Size", min_value=15, max_value=70, value=38, step=2)
 
-    st.subheader("2. Design & Ink")
+    font_style = st.selectbox("Font Family / Typeface", [
+        "Sans-Serif Bold",
+        "Serif (Classic)",
+        "Monospace (Stamp/Typewriter)"
+    ])
+
+    st.subheader("2. Colors & Design")
+    
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        text_hex = st.color_picker("Text Color", "#1a3d8f")
+    with col_c2:
+        shape_hex = st.color_picker("Frame & Shape Color", "#1a3d8f")
+
     shape = st.selectbox("Stamp Frame Shape", [
         ("Double Ring Circle", "double_round"),
         ("Single Ring Circle", "round"),
@@ -418,8 +450,6 @@ with col_left:
         ("Triangle", "triangle"),
         ("Notary Starburst", "notary_star")
     ], format_func=lambda x: x[0])[1]
-
-    hex_color = st.color_picker("Ink Color", "#1a3d8f")
 
     st.subheader("3. Icon & Scaling")
     icon_source = st.radio("Center Element", ["Built-in Icon", "Upload Custom Logo"])
@@ -442,7 +472,9 @@ with col_right:
         address=address_text,
         fs_top=fs_top,
         fs_bot=fs_bot,
-        hex_color=hex_color,
+        font_style=font_style,
+        text_hex=text_hex,
+        shape_hex=shape_hex,
         shape=shape,
         icon_source=icon_source,
         icon_name=icon_name,
