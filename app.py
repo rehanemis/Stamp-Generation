@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 # ── 1. PAGE & UI CONFIGURATION ────────────────────────────────────────────
 st.set_page_config(
-    page_title="Official Stamp & Seal Generator",
+    page_title="Official Stamp Creation- Tariq Sb",
     page_icon="🏷️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -40,13 +40,10 @@ st.markdown("""
 
 # ── 2. FONTS ENGINE (DIRECT GOOGLE STATIC CDN LINKS) ───────────────────────
 FONT_URLS = {
-    "Impact / Heavy (Anton)": "https://fonts.gstatic.com/s/anton/v25/1Ptg8zYS_SKggPN-C0IS.ttf",
-    "Sans-Serif Bold (Roboto)": "https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.ttf",
-    "Sans-Serif Condensed (Oswald)": "https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8G.ttf",
-    "Serif Classic (Playfair Display)": "https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_RJ3ijvrye4-TYja.ttf",
-    "Serif Formal (Merriweather)": "https://fonts.gstatic.com/s/merriweather/v30/u-4n0qyriQwlOr3FHgv0MYF2.ttf",
-    "Monospace / Technical (Fira Code)": "https://fonts.gstatic.com/s/firacode/v21/uqn5r_CpB2y_2XMfrtc8xE-V.ttf",
-    "Modern Clean (Montserrat)": "https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm453WzA.ttf"
+    "Bold Heavy (Anton)": "https://fonts.gstatic.com/s/anton/v25/1Ptg8zYS_SKggPN-C0IS.ttf",
+    "Clean Modern (Montserrat)": "https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm453WzA.ttf",
+    "Formal Classic (Playfair)": "https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_RJ3ijvrye4-TYja.ttf",
+    "Compact Narrow (Oswald)": "https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8G.ttf"
 }
 
 @st.cache_data(show_spinner=False)
