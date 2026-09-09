@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 # ── 1. PAGE & UI CONFIGURATION ────────────────────────────────────────────
 st.set_page_config(
-    page_title="Official Stamp Creation- Tariq Sb",
+    page_title="Official Stamp & Seal Generator",
     page_icon="🏷️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -448,7 +448,7 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
     return img
 
 # ── 7. UI FRONTEND ────────────────────────────────────────────────────────
-st.title("🏷️ Official Stamp & Seal Generator")
+st.title("🏷️ Demo for Tariq Sb Official Stamp  Generator")
 st.write("Configure and download high-resolution transparent PNG stamps for official approvals.")
 
 col_left, col_right = st.columns([1, 1], gap="large")
