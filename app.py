@@ -38,22 +38,25 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ── 2. FONTS ENGINE ────────────────────────────────────────────────────────
+# ── 2. FONTS ENGINE (DIRECT GOOGLE STATIC CDN LINKS) ───────────────────────
 FONT_URLS = {
-    "Sans-Serif Bold (Roboto)": "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto-Bold.ttf",
-    "Sans-Serif Condensed (Oswald)": "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/Oswald-Bold.ttf",
-    "Serif Classic (Playfair Display)": "https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/PlayfairDisplay-Bold.ttf",
-    "Serif Formal (Merriweather)": "https://raw.githubusercontent.com/google/fonts/main/ofl/merriweather/Merriweather-Bold.ttf",
-    "Monospace / Typewriter (Fira Code)": "https://raw.githubusercontent.com/google/fonts/main/ofl/firacode/FiraCode-Bold.ttf",
-    "Modern Clean (Montserrat)": "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat-Bold.ttf",
-    "Impact / Heavy (Anton)": "https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf"
+    "Impact / Heavy (Anton)": "https://fonts.gstatic.com/s/anton/v25/1Ptg8zYS_SKggPN-C0IS.ttf",
+    "Sans-Serif Bold (Roboto)": "https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.ttf",
+    "Sans-Serif Condensed (Oswald)": "https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8G.ttf",
+    "Serif Classic (Playfair Display)": "https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_RJ3ijvrye4-TYja.ttf",
+    "Serif Formal (Merriweather)": "https://fonts.gstatic.com/s/merriweather/v30/u-4n0qyriQwlOr3FHgv0MYF2.ttf",
+    "Monospace / Technical (Fira Code)": "https://fonts.gstatic.com/s/firacode/v21/uqn5r_CpB2y_2XMfrtc8xE-V.ttf",
+    "Modern Clean (Montserrat)": "https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm453WzA.ttf"
 }
 
 @st.cache_data(show_spinner=False)
 def fetch_font_bytes(url):
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.read()
     except Exception:
         return None
@@ -68,7 +71,7 @@ def get_font(size, font_style):
             except Exception:
                 pass
 
-    # Fallbacks
+    # System local fallbacks if offline
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
@@ -141,7 +144,6 @@ def draw_rect_border(draw, bbox, color, style, width=16, radius=0):
     elif style in ["Dashed", "Dotted"]:
         x0, y0, x1, y1 = bbox
         pts = []
-        # Perimeter points
         steps_h, steps_v = 40, 25
         for i in range(steps_h): pts.append((x0 + (x1-x0)*(i/steps_h), y0))
         for i in range(steps_v): pts.append((x1, y0 + (y1-y0)*(i/steps_v)))
