@@ -1,6 +1,5 @@
 import math
 import io
-import urllib.request
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
@@ -38,42 +37,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ── 2. FONTS ENGINE (DIRECT GOOGLE STATIC CDN LINKS) ───────────────────────
-FONT_URLS = {
-    "Bold Heavy (Anton)": "https://fonts.gstatic.com/s/anton/v25/1Ptg8zYS_SKggPN-C0IS.ttf",
-    "Clean Modern (Montserrat)": "https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm453WzA.ttf",
-    "Formal Classic (Playfair)": "https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_RJ3ijvrye4-TYja.ttf",
-    "Compact Narrow (Oswald)": "https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8G.ttf"
-}
-
-@st.cache_data(show_spinner=False)
-def fetch_font_bytes(url):
-    try:
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.read()
-    except Exception:
-        return None
-
-def get_font(size, font_style):
-    url = FONT_URLS.get(font_style)
-    if url:
-        font_bytes = fetch_font_bytes(url)
-        if font_bytes:
-            try:
-                return ImageFont.truetype(io.BytesIO(font_bytes), size)
-            except Exception:
-                pass
-
-    # System local fallbacks if offline
+# ── 2. LOCAL SYSTEM FONT ENGINE ───────────────────────────────────────────
+def get_local_font(size):
     font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "C:/Windows/Fonts/arialbd.ttf",
-        "arialbd.ttf"
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/calibri.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "arial.ttf"
     ]
     for path in font_paths:
         try:
@@ -157,8 +129,8 @@ def draw_rect_border(draw, bbox, color, style, width=16, radius=0):
             else:
                 draw.ellipse([p[0]-dot_r, p[1]-dot_r, p[0]+dot_r, p[1]+dot_r], fill=color)
 
-# ── 4. CURVED TEXT RENDERERS ──────────────────────────────────────────────
-def curved_text_circle(img, text, cx, cy, radius, start_deg, color, font, spacing=1.05, flip=False):
+# ── 4. CURVED TEXT RENDERERS WITH BOLD SUPPORT ────────────────────────────
+def curved_text_circle(img, text, cx, cy, radius, start_deg, color, font, spacing=1.05, flip=False, stroke_w=0):
     if not text.strip():
         return
     chars = list(text.upper())
@@ -183,7 +155,8 @@ def curved_text_circle(img, text, cx, cy, radius, start_deg, color, font, spacin
             rot = math.degrees(mid) - 90
             sz = int(cw) + 80
             ch_im = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
-            ImageDraw.Draw(ch_im).text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm")
+            ch_draw = ImageDraw.Draw(ch_im)
+            ch_draw.text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm", stroke_width=stroke_w, stroke_fill=color+(255,))
             ch_im = ch_im.rotate(-rot, expand=True, resample=Image.BICUBIC)
             pw, ph = ch_im.size
             img.paste(ch_im, (int(x - pw/2), int(y - ph/2)), ch_im)
@@ -196,13 +169,14 @@ def curved_text_circle(img, text, cx, cy, radius, start_deg, color, font, spacin
             rot = math.degrees(mid) + 90
             sz = int(cw) + 80
             ch_im = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
-            ImageDraw.Draw(ch_im).text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm")
+            ch_draw = ImageDraw.Draw(ch_im)
+            ch_draw.text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm", stroke_width=stroke_w, stroke_fill=color+(255,))
             ch_im = ch_im.rotate(-rot, expand=True, resample=Image.BICUBIC)
             pw, ph = ch_im.size
             img.paste(ch_im, (int(x - pw/2), int(y - ph/2)), ch_im)
             cur += cw / radius
 
-def curved_text_oval(img, text, cx, cy, rx, ry, start_deg, color, font, spacing=1.05, flip=False):
+def curved_text_oval(img, text, cx, cy, rx, ry, start_deg, color, font, spacing=1.05, flip=False, stroke_w=0):
     if not text.strip():
         return
     chars = list(text.upper())
@@ -231,7 +205,8 @@ def curved_text_oval(img, text, cx, cy, rx, ry, start_deg, color, font, spacing=
 
             sz = int(cw) + 80
             ch_im = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
-            ImageDraw.Draw(ch_im).text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm")
+            ch_draw = ImageDraw.Draw(ch_im)
+            ch_draw.text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm", stroke_width=stroke_w, stroke_fill=color+(255,))
             ch_im = ch_im.rotate(-rot, expand=True, resample=Image.BICUBIC)
             pw, ph = ch_im.size
             img.paste(ch_im, (int(x - pw/2), int(y - ph/2)), ch_im)
@@ -247,7 +222,8 @@ def curved_text_oval(img, text, cx, cy, rx, ry, start_deg, color, font, spacing=
 
             sz = int(cw) + 80
             ch_im = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
-            ImageDraw.Draw(ch_im).text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm")
+            ch_draw = ImageDraw.Draw(ch_im)
+            ch_draw.text((sz//2, sz//2), ch, font=font, fill=color+(255,), anchor="mm", stroke_width=stroke_w, stroke_fill=color+(255,))
             ch_im = ch_im.rotate(-rot, expand=True, resample=Image.BICUBIC)
             pw, ph = ch_im.size
             img.paste(ch_im, (int(x - pw/2), int(y - ph/2)), ch_im)
@@ -319,11 +295,15 @@ def paste_custom_logo(base_img, uploaded_file, cx, cy, max_size, target_color):
         pass
 
 # ── 6. MAIN STAMP BUILDER ─────────────────────────────────────────────────
-def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape_hex, shape, border_style, icon_source, icon_name, uploaded_file, icon_scale_mode):
+def generate_stamp(company, address, fs_top, fs_bot, is_bold, text_hex, shape_hex, shape, border_style, icon_source, icon_name, uploaded_file, icon_scale_mode):
     text_color = hex_to_rgb(text_hex)
     shape_color = hex_to_rgb(shape_hex)
-    font_top = get_font(fs_top, font_style)
-    font_bot = get_font(fs_bot, font_style)
+    font_top = get_local_font(fs_top)
+    font_bot = get_local_font(fs_bot)
+
+    # Stroke weight for bold mode
+    stroke_w_top = 2 if is_bold else 0
+    stroke_w_bot = 2 if is_bold else 0
 
     if shape in ["double_round", "round"]:
         S = 1200
@@ -345,8 +325,8 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
             draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=shape_color, width=4)
             r_text = (r_outer + r_inner) / 2
 
-        curved_text_circle(img, company, cx, cy, r_text, -90, text_color, font_top, 1.05, flip=False)
-        curved_text_circle(img, address, cx, cy, r_text, 90, text_color, font_bot, 1.08, flip=True)
+        curved_text_circle(img, company, cx, cy, r_text, -90, text_color, font_top, 1.05, flip=False, stroke_w=stroke_w_top)
+        curved_text_circle(img, address, cx, cy, r_text, 90, text_color, font_bot, 1.08, flip=True, stroke_w=stroke_w_bot)
 
         icon_size = get_icon_radius(S, icon_scale_mode)
         if icon_source == "Built-in Icon":
@@ -366,8 +346,8 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
         draw.ellipse([cx-rx2, cy-ry2, cx+rx2, cy+ry2], outline=shape_color, width=4)
 
         rx_text, ry_text = (rx1 + rx2) / 2, (ry1 + ry2) / 2
-        curved_text_oval(img, company, cx, cy, rx_text, ry_text, -90, text_color, font_top, 1.05, flip=False)
-        curved_text_oval(img, address, cx, cy, rx_text, ry_text, 90, text_color, font_bot, 1.08, flip=True)
+        curved_text_oval(img, company, cx, cy, rx_text, ry_text, -90, text_color, font_top, 1.05, flip=False, stroke_w=stroke_w_top)
+        curved_text_oval(img, address, cx, cy, rx_text, ry_text, 90, text_color, font_bot, 1.08, flip=True, stroke_w=stroke_w_bot)
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
@@ -389,10 +369,10 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
         else:
             draw.rectangle([pad+28, pad+28, W-pad-28, H-pad-28], outline=shape_color, width=4)
 
-        draw.text((cx, pad+84), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm")
+        draw.text((cx, pad+84), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm", stroke_width=stroke_w_top, stroke_fill=text_color+(255,))
         draw.line([pad+60, pad+136, W-pad-60, pad+136], fill=shape_color, width=4)
         draw.line([pad+60, H-pad-136, W-pad-60, H-pad-136], fill=shape_color, width=4)
-        draw.text((cx, H-pad-84), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm")
+        draw.text((cx, H-pad-84), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm", stroke_width=stroke_w_bot, stroke_fill=text_color+(255,))
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
@@ -409,8 +389,8 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
         draw.polygon([(cx, 40), (W-40, H-40), (40, H-40)], outline=shape_color, width=16)
         draw.polygon([(cx, 120), (W-120, H-80), (120, H-80)], outline=shape_color, width=4)
 
-        draw.text((cx, H - 150), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm")
-        draw.text((cx, H - 100), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm")
+        draw.text((cx, H - 150), company.upper(), font=font_top, fill=text_color+(255,), anchor="mm", stroke_width=stroke_w_top, stroke_fill=text_color+(255,))
+        draw.text((cx, H - 100), address.upper(), font=font_bot, fill=text_color+(255,), anchor="mm", stroke_width=stroke_w_bot, stroke_fill=text_color+(255,))
 
         icon_size = get_icon_radius(min(W, H), icon_scale_mode)
         if icon_source == "Built-in Icon":
@@ -436,8 +416,8 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
         r_inner = r_out - 80
         draw.ellipse([cx-r_inner, cy-r_inner, cx+r_inner, cy+r_inner], outline=shape_color, width=4)
 
-        curved_text_circle(img, company, cx, cy, r_inner-50, -90, text_color, font_top, 1.05, flip=False)
-        curved_text_circle(img, address, cx, cy, r_inner-50, 90, text_color, font_bot, 1.08, flip=True)
+        curved_text_circle(img, company, cx, cy, r_inner-50, -90, text_color, font_top, 1.05, flip=False, stroke_w=stroke_w_top)
+        curved_text_circle(img, address, cx, cy, r_inner-50, 90, text_color, font_bot, 1.08, flip=True, stroke_w=stroke_w_bot)
 
         icon_size = get_icon_radius(S, icon_scale_mode)
         if icon_source == "Built-in Icon":
@@ -448,20 +428,21 @@ def generate_stamp(company, address, fs_top, fs_bot, font_style, text_hex, shape
     return img
 
 # ── 7. UI FRONTEND ────────────────────────────────────────────────────────
-st.title("🏷️ Demo for Tariq Sb Official Stamp  Generator")
+st.title("🏷️ Official Stamp & Seal Generator")
 st.write("Configure and download high-resolution transparent PNG stamps for official approvals.")
 
 col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
-    st.subheader("1. Text Content & Font Options")
+    st.subheader("1. Text Content & Weight")
     company_name = st.text_input("Company / Organization Name", "SAKIB HASSAN BUILDING MAINTINANCE LLC")
     fs_top = st.slider("Company Name Font Size", min_value=20, max_value=80, value=52, step=2)
 
     address_text = st.text_input("Address / Location Text", "AJMAN U.A.E")
     fs_bot = st.slider("Address Text Font Size", min_value=15, max_value=70, value=38, step=2)
 
-    font_style = st.selectbox("Font Typeface", list(FONT_URLS.keys()))
+    font_weight = st.radio("Text Style", ["Normal Stamp", "Bold Heavy Stamp"], horizontal=True)
+    is_bold = (font_weight == "Bold Heavy Stamp")
 
     st.subheader("2. Colors & Design")
 
@@ -508,7 +489,7 @@ with col_right:
         address=address_text,
         fs_top=fs_top,
         fs_bot=fs_bot,
-        font_style=font_style,
+        is_bold=is_bold,
         text_hex=text_hex,
         shape_hex=shape_hex,
         shape=shape,
