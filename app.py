@@ -483,31 +483,5 @@ with col_left:
 
 with col_right:
     st.subheader("High-Res Live Preview")
-
-    stamp_img = generate_stamp(
-        company=company_name,
-        address=address_text,
-        fs_top=fs_top,
-        fs_bot=fs_bot,
-        is_bold=is_bold,
-        text_hex=text_hex,
-        shape_hex=shape_hex,
-        shape=shape,
-        border_style=border_style,
-        icon_source=icon_source,
-        icon_name=icon_name,
-        uploaded_file=uploaded_file,
-        icon_scale_mode=icon_scale_mode
-    )
-
-    st.image(stamp_img, use_container_width=True)
-    buf = io.BytesIO()
-    stamp_img.save(buf, format="PNG", dpi=(300, 300))
-    byte_im = buf.getvalue()
-
-    st.download_button(
-        label="💾 Download High-Res PNG (300 DPI)",
-        data=byte_im,
-        file_name="official_stamp_high_res.png",
-        mime="image/png"
-    )
+    st.info("Please contact Muhammad Rehan Baig.")
+    
