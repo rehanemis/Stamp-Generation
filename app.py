@@ -500,15 +500,14 @@ with col_right:
         icon_scale_mode=icon_scale_mode
     )
 
-    #st.image(stamp_img, use_container_width=True)
-     st.info("Please contact Muhammad Rehan Baig.")
-    #buf = io.BytesIO()
-    #stamp_img.save(buf, format="PNG", dpi=(300, 300))
-    #byte_im = buf.getvalue()
+    st.image(stamp_img, use_container_width=True)
+    buf = io.BytesIO()
+    stamp_img.save(buf, format="PNG", dpi=(300, 300))
+    byte_im = buf.getvalue()
 
-    #st.download_button(
-       # label="💾 Download High-Res PNG (300 DPI)",
-        #data=byte_im,
-        #file_name="official_stamp_high_res.png",
-        #mime="image/png"
+    st.download_button(
+        label="💾 Download High-Res PNG (300 DPI)",
+        data=byte_im,
+        file_name="official_stamp_high_res.png",
+        mime="image/png"
     )
