@@ -501,7 +501,7 @@ with col_right:
     )
 
     #st.image(stamp_img, use_container_width=True)
-   st.info("Please contact Muhammad Rehan Baig.")
+     st.info("Please contact Muhammad Rehan Baig.")
     #buf = io.BytesIO()
     #stamp_img.save(buf, format="PNG", dpi=(300, 300))
     #byte_im = buf.getvalue()
