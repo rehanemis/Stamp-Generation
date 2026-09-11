@@ -4,7 +4,7 @@ import random
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-# Try importing cairosvg for high-res SVG template rendering
+# Try importing cairosvg for vector SVG template rendering
 try:
     import cairosvg
     CAIROSVG_AVAILABLE = True
@@ -13,9 +13,8 @@ except ImportError:
 
 
 # ==========================================
-# 1. DATABASE / CONFIGURATION (100 STAMPS MAP)
+# 1. DATABASE / CONFIGURATION (PRESETS)
 # ==========================================
-# Instead of 10,000 lines of code, all 100 unique stamps are defined here.
 STAMPS_DATABASE = {
     "stamp_001": {
         "name": "First Class Angled Ribbon",
@@ -48,7 +47,7 @@ STAMPS_DATABASE = {
         "name": "Sawtooth Starburst (e.g. Best Seller)",
         "family": "polygon",
         "default_color": "#D32F2F",
-        "sides": 24, # Sawtooth teeth count
+        "sides": 24,
         "text_type": "three_fields",
         "defaults": {
             "top": "100% QUALITY",
@@ -67,13 +66,10 @@ STAMPS_DATABASE = {
             "line2": "RECYCLED"
         }
     },
-    # ------------------------------------------------------------------
-    # Example for complex unique stamps using custom SVG background base
-    # ------------------------------------------------------------------
     "stamp_005": {
-        "name": "Custom Vector Crest / Tool Badge",
+        "name": "Custom Vector Crest / Badge",
         "family": "svg_overlay",
-        "svg_file": "templates/stamp_005.svg", # Path to SVG base image
+        "svg_file": "templates/stamp_005.svg",
         "default_color": "#1A237E",
         "text_type": "three_fields",
         "defaults": {
@@ -82,12 +78,11 @@ STAMPS_DATABASE = {
             "bottom": "CRAFTED"
         }
     }
-    # ... Populate up to stamp_100 following this exact dictionary structure
 }
 
 
 # ==========================================
-# 2. HELPER UTILITIES & RENDERERS
+# 2. HELPER UTILITIES & TEXT CURVING
 # ==========================================
 
 def hex_to_rgba(hex_str, alpha=255):
@@ -97,7 +92,7 @@ def hex_to_rgba(hex_str, alpha=255):
 
 
 def load_font(size):
-    """Loads a high-impact bold font, falling back to default PIL font."""
+    """Loads a bold font with fallback to default font."""
     font_candidates = ["impact.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf"]
     for font_name in font_candidates:
         try:
@@ -107,23 +102,71 @@ def load_font(size):
     return ImageFont.load_default()
 
 
+def draw_curved_text_top(image_draw, text, cx, cy, radius, font, fill):
+    """Renders text curved along the top arch of a circle."""
+    if not text:
+        return
+    text = text.upper()
+    total_angle = min(160, len(text) * 12)
+    start_angle = -90 - (total_angle / 2)
+    angle_step = total_angle / max(1, (len(text) - 1)) if len(text) > 1 else 0
+
+    for i, char in enumerate(text):
+        angle_deg = start_angle + (i * angle_step)
+        angle_rad = math.radians(angle_deg)
+        
+        x = cx + radius * math.cos(angle_rad)
+        y = cy + radius * math.sin(angle_rad)
+
+        char_img = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+        char_draw = ImageDraw.Draw(char_img)
+        char_draw.text((60, 60), char, font=font, fill=fill, anchor="mm")
+        
+        rotated_char = char_img.rotate(angle_deg + 90, resample=Image.BICUBIC, expand=False)
+        image_draw._image.paste(rotated_char, (int(x - 60), int(y - 60)), rotated_char)
+
+
+def draw_curved_text_bottom(image_draw, text, cx, cy, radius, font, fill):
+    """Renders text curved along the bottom arch of a circle."""
+    if not text:
+        return
+    text = text.upper()
+    total_angle = min(160, len(text) * 12)
+    start_angle = 90 + (total_angle / 2)
+    angle_step = total_angle / max(1, (len(text) - 1)) if len(text) > 1 else 0
+
+    for i, char in enumerate(text):
+        angle_deg = start_angle - (i * angle_step)
+        angle_rad = math.radians(angle_deg)
+        
+        x = cx + radius * math.cos(angle_rad)
+        y = cy + radius * math.sin(angle_rad)
+
+        char_img = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+        char_draw = ImageDraw.Draw(char_img)
+        char_draw.text((60, 60), char, font=font, fill=fill, anchor="mm")
+        
+        rotated_char = char_img.rotate(angle_deg - 90, resample=Image.BICUBIC, expand=False)
+        image_draw._image.paste(rotated_char, (int(x - 60), int(y - 60)), rotated_char)
+
+
 def apply_grunge_texture(img, intensity=0.3):
-    """Applies realistic worn-out rubber stamp ink erosion texture."""
+    """Applies noise restricted ONLY to non-transparent pixels (ink layer)."""
     if intensity <= 0:
         return img
     
     noise = Image.new("L", img.size, 255)
     draw_noise = ImageDraw.Draw(noise)
-    num_specks = int(img.width * img.height * 0.004 * intensity)
+    num_specks = int(img.width * img.height * 0.005 * intensity)
     
     for _ in range(num_specks):
         x = random.randint(0, img.width)
         y = random.randint(0, img.height)
         r = random.randint(1, 3)
-        draw_noise.ellipse([x-r, y-r, x+r, y+r], fill=random.randint(40, 160))
+        draw_noise.ellipse([x-r, y-r, x+r, y+r], fill=random.randint(20, 120))
 
     r, g, b, a = img.split()
-    a_masked = Image.composite(a, Image.eval(noise, lambda p: 255 - p), a)
+    a_masked = Image.composite(Image.eval(a, lambda p: 0), a, noise)
     return Image.merge("RGBA", (r, g, b, a_masked))
 
 
@@ -165,7 +208,11 @@ def render_ribbon_circle(spec, top_text, line1, line2, color_hex):
             x2, y2 = cx + r_cog * math.cos(a2), cy + r_cog * math.sin(a2)
             draw.line([(x1, y1), (x2, y2)], fill=color, width=14)
 
-    # 5. Center Text Stack
+    # 5. Top Arc Text
+    font_arc = load_font(42)
+    draw_curved_text_top(draw, top_text, cx, cy, radius=365, font=font_arc, fill=(255, 255, 255, 255))
+
+    # 6. Center Text Stack
     font_main = load_font(120)
     draw.text((cx, cy - 55), line1.upper(), font=font_main, fill=color, anchor="mm")
     draw.text((cx, cy + 55), line2.upper(), font=font_main, fill=color, anchor="mm")
@@ -186,19 +233,25 @@ def render_circular_box(spec, top_text, center_text, bottom_text, color_hex):
     draw = ImageDraw.Draw(img)
     color = hex_to_rgba(color_hex)
 
-    # Borders
-    draw.ellipse([50, 50, S - 50, S - 50], outline=color, width=12)
-    draw.ellipse([90, 90, S - 90, S - 90], outline=color, width=6)
-    draw.ellipse([160, 160, S - 160, S - 160], outline=color, width=4)
+    # 1. Outer Rings
+    draw.ellipse([80, 80, S - 80, S - 80], outline=color, width=16)
+    draw.ellipse([120, 120, S - 120, S - 120], outline=color, width=6)
+    draw.ellipse([180, 180, S - 180, S - 180], outline=color, width=4)
 
-    # Center Box Banner
-    box_w, box_h = 820, 180
+    # 2. Draw Curved Top & Bottom Text along Arches
+    font_arc = load_font(45)
+    draw_curved_text_top(draw, top_text.upper(), cx, cy, radius=390, font=font_arc, fill=color)
+    draw_curved_text_bottom(draw, bottom_text.upper(), cx, cy, radius=390, font=font_arc, fill=color)
+
+    # 3. Center Box Banner Cutout
+    box_w, box_h = 780, 180
     box_rect = [cx - box_w//2, cy - box_h//2, cx + box_w//2, cy + box_h//2]
+    
     draw.rectangle(box_rect, fill=(255, 255, 255, 255))
-    draw.rectangle(box_rect, outline=color, width=12)
+    draw.rectangle(box_rect, outline=color, width=14)
 
-    # Center Text
-    font_lg = load_font(100)
+    # 4. Center Bold Text
+    font_lg = load_font(85)
     draw.text((cx, cy), center_text.upper(), font=font_lg, fill=color, anchor="mm")
 
     return img
@@ -212,11 +265,9 @@ def render_rectangle(spec, line1, line2, color_hex):
     draw = ImageDraw.Draw(img)
     color = hex_to_rgba(color_hex)
 
-    # Outer Double Borders
     draw.rounded_rectangle([30, 30, W - 30, H - 30], radius=35, outline=color, width=16)
     draw.rounded_rectangle([60, 60, W - 60, H - 60], radius=20, outline=color, width=6)
 
-    # Text Lines
     font_main = load_font(110)
     draw.text((cx, cy - 60), line1.upper(), font=font_main, fill=color, anchor="mm")
     draw.text((cx, cy + 60), line2.upper(), font=font_main, fill=color, anchor="mm")
@@ -227,7 +278,6 @@ def render_rectangle(spec, line1, line2, color_hex):
 def render_svg_overlay(spec, top_text, center_text, bottom_text, color_hex):
     """Engine for SVG/PNG Background Overlay Stamp layouts."""
     if not CAIROSVG_AVAILABLE:
-        # Fallback if CairoSVG is not installed on system
         img = Image.new("RGBA", (800, 800), (255, 255, 255, 0))
         draw = ImageDraw.Draw(img)
         draw.text((400, 400), "CairoSVG needed for SVG templates", anchor="mm", fill=(255, 0, 0, 255))
@@ -246,11 +296,54 @@ def render_svg_overlay(spec, top_text, center_text, bottom_text, color_hex):
         png_bytes = cairosvg.svg2png(bytestring=svg_content.encode('utf-8'), scale=3.0)
         return Image.open(io.BytesIO(png_bytes))
     except Exception as e:
-        # Graceful fallback error rendering
         img = Image.new("RGBA", (800, 800), (255, 255, 255, 0))
         draw = ImageDraw.Draw(img)
-        draw.text((400, 400), f"Template error: {e}", anchor="mm", fill=(255, 0, 0, 255))
+        draw.text((400, 400), f"Template file missing/error: {e}", anchor="mm", fill=(255, 0, 0, 255))
         return img
+
+
+def render_logo_to_stamp(uploaded_file, top_text, center_text, bottom_text, color_hex, scale_ratio=0.55):
+    """Processes uploaded logo into stamp mark and overlays custom text."""
+    S = 1000
+    cx, cy = S // 2, S // 2
+    
+    canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    color = hex_to_rgba(color_hex)
+
+    if uploaded_file is not None:
+        raw_logo = Image.open(uploaded_file).convert("L")
+        
+        # High-contrast thresholding
+        threshold = 180
+        mono_logo = raw_logo.point(lambda p: 255 if p < threshold else 0, mode='1')
+        
+        colored_logo = Image.new("RGBA", mono_logo.size, color)
+        colored_logo.putalpha(mono_logo.convert("L"))
+        
+        target_size = int(S * scale_ratio)
+        colored_logo.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+        
+        lx = cx - (colored_logo.width // 2)
+        ly = cy - (colored_logo.height // 2)
+        canvas.paste(colored_logo, (lx, ly), colored_logo)
+
+    # Frame Ring
+    draw.ellipse([60, 60, S - 60, S - 60], outline=color, width=14)
+    draw.ellipse([90, 90, S - 90, S - 90], outline=color, width=4)
+
+    # Text Overlays
+    font_arc = load_font(45)
+    font_center = load_font(75)
+
+    if top_text:
+        draw_curved_text_top(draw, top_text.upper(), cx, cy, radius=410, font=font_arc, fill=color)
+    if bottom_text:
+        draw_curved_text_bottom(draw, bottom_text.upper(), cx, cy, radius=410, font=font_arc, fill=color)
+    if center_text and uploaded_file is None:
+        draw.text((cx, cy), center_text.upper(), font=font_center, fill=color, anchor="mm")
+
+    return canvas
 
 
 # ==========================================
@@ -258,80 +351,98 @@ def render_svg_overlay(spec, top_text, center_text, bottom_text, color_hex):
 # ==========================================
 
 def main():
-    st.set_page_config(page_title="Official Stamp Generator", page_icon="🎨", layout="wide")
+    st.set_page_config(page_title="Official Stamp Generator Studio", page_icon="🎨", layout="wide")
     st.title("Stamp Generator Studio")
 
     col_left, col_right = st.columns([1, 1])
 
     with col_left:
-        st.subheader("1. Choose Stamp Design Preset")
-        
-        # Selectbox to pick from 100 stamps
-        stamp_key = st.selectbox(
-            "Select Preset Template",
-            options=list(STAMPS_DATABASE.keys()),
-            format_func=lambda k: f"{k.upper()} — {STAMPS_DATABASE[k]['name']}"
-        )
-        
-        spec = STAMPS_DATABASE[stamp_key]
-        defaults = spec.get("defaults", {})
+        # TABS FOR WORKFLOW MODES
+        tab_preset, tab_upload = st.tabs(["📋 Preset Templates", "🖼️ Convert Sample Logo"])
 
-        st.subheader("2. Customize Text & Color")
-        
-        # Dynamic text fields based on layout requirements
-        top_text = ""
-        center_text = ""
-        bottom_text = ""
-        line1, line2 = "", ""
+        with tab_preset:
+            st.subheader("1. Choose Stamp Preset")
+            stamp_key = st.selectbox(
+                "Select Preset Template",
+                options=list(STAMPS_DATABASE.keys()),
+                format_func=lambda k: f"{k.upper()} — {STAMPS_DATABASE[k]['name']}"
+            )
+            
+            spec = STAMPS_DATABASE[stamp_key]
+            defaults = spec.get("defaults", {})
 
-        if spec["text_type"] == "three_fields":
-            top_text = st.text_input("Top Arc / Header Text", defaults.get("top", ""))
-            center_text = st.text_input("Center Text", defaults.get("center", ""))
-            bottom_text = st.text_input("Bottom Arc / Footer Text", defaults.get("bottom", ""))
-        elif spec["text_type"] == "two_lines_center":
-            top_text = st.text_input("Outer Arc Text (Optional)", defaults.get("top", ""))
-            c1, c2 = st.columns(2)
-            with c1:
-                line1 = st.text_input("Center Line 1", defaults.get("line1", ""))
-            with c2:
-                line2 = st.text_input("Center Line 2", defaults.get("line2", ""))
+            st.subheader("2. Customize Text & Color")
+            
+            top_text, center_text, bottom_text = "", "", ""
+            line1, line2 = "", ""
 
-        color_hex = st.color_picker("Stamp Ink Color", spec["default_color"])
-        
-        st.subheader("3. Realism Effects")
+            if spec["text_type"] == "three_fields":
+                top_text = st.text_input("Top Arc Text", defaults.get("top", ""))
+                center_text = st.text_input("Center Text", defaults.get("center", ""))
+                bottom_text = st.text_input("Bottom Arc Text", defaults.get("bottom", ""))
+            elif spec["text_type"] == "two_lines_center":
+                top_text = st.text_input("Outer Arc Text (Optional)", defaults.get("top", ""))
+                c1, c2 = st.columns(2)
+                with c1:
+                    line1 = st.text_input("Center Line 1", defaults.get("line1", ""))
+                with c2:
+                    line2 = st.text_input("Center Line 2", defaults.get("line2", ""))
+
+            color_hex_preset = st.color_picker("Stamp Ink Color", spec["default_color"], key="cp_preset")
+
+        with tab_upload:
+            st.subheader("1. Upload Reference Stamp or Logo")
+            uploaded_logo = st.file_uploader("Upload PNG/JPG Image", type=["png", "jpg", "jpeg"])
+
+            st.subheader("2. Customize Stamp Text")
+            top_text_logo = st.text_input("Top Arc Text", "OFFICIAL DOCUMENT", key="top_logo")
+            center_text_logo = st.text_input("Center Text (Optional)", "", key="cnt_logo")
+            bottom_text_logo = st.text_input("Bottom Arc Text", "VERIFIED & APPROVED", key="bot_logo")
+
+            color_hex_logo = st.color_picker("Stamp Ink Color", "#1A237E", key="cp_logo")
+
+        st.subheader("3. Realism & Effects")
         grunge_level = st.slider("Ink Wear / Grunge Effect", 0.0, 1.0, 0.2, step=0.05)
 
     with col_right:
         st.subheader("Live High-Res Preview")
 
-        # MASTER ROUTER: Calls the appropriate rendering engine family
-        family = spec["family"]
-        
-        if family == "ribbon_circle":
-            img = render_ribbon_circle(spec, top_text, line1, line2, color_hex)
-        elif family == "circular_box":
-            img = render_circular_box(spec, top_text, center_text, bottom_text, color_hex)
-        elif family == "rectangle":
-            img = render_rectangle(spec, line1, line2, color_hex)
-        elif family == "svg_overlay":
-            img = render_svg_overlay(spec, top_text, center_text, bottom_text, color_hex)
+        # RENDER ROUTING
+        if tab_upload._active if hasattr(tab_upload, '_active') else False:
+            img = render_logo_to_stamp(
+                uploaded_logo, 
+                top_text_logo, 
+                center_text_logo, 
+                bottom_text_logo, 
+                color_hex_logo
+            )
         else:
-            img = render_circular_box(spec, top_text, center_text, bottom_text, color_hex)
+            family = spec["family"]
+            if family == "ribbon_circle":
+                img = render_ribbon_circle(spec, top_text, line1, line2, color_hex_preset)
+            elif family == "circular_box":
+                img = render_circular_box(spec, top_text, center_text, bottom_text, color_hex_preset)
+            elif family == "rectangle":
+                img = render_rectangle(spec, line1, line2, color_hex_preset)
+            elif family == "svg_overlay":
+                img = render_svg_overlay(spec, top_text, center_text, bottom_text, color_hex_preset)
+            else:
+                img = render_circular_box(spec, top_text, center_text, bottom_text, color_hex_preset)
 
-        # Apply Realism Effects
+        # Apply Grunge Texture
         if grunge_level > 0:
             img = apply_grunge_texture(img, intensity=grunge_level)
 
-        # Display Live Preview Image
+        # Render Canvas
         st.image(img, use_container_width=True)
 
-        # Download Button
+        # Download PNG
         buf = io.BytesIO()
         img.save(buf, format="PNG", dpi=(300, 300))
         st.download_button(
             label="💾 Download High-Res PNG (300 DPI)",
             data=buf.getvalue(),
-            file_name=f"{stamp_key}_custom.png",
+            file_name="official_stamp_high_res.png",
             mime="image/png"
         )
 
